@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Choice Page</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h2>What are you looking for?</h2>
+        <button class="btn" onclick="getLocation()">Get My Location</button>
+        <p id="location-result" style="margin:10px 0;"></p>
+        <div class="choice-cards">
+            <a href="#" class="card" onclick="event.preventDefault(); showRecommendations('restaurants');">🍽️ Restaurants</a>
+            <a href="#" class="card" onclick="event.preventDefault(); showRecommendations('weekend');">🏞️ Weekend Spots</a>
+        </div>
+        <div id="recommendations" style="margin-top:20px;"></div>
+    </div>
+    <script>
+    let userLocation = null;
+    function getLocation() {
+        const result = document.getElementById('location-result');
+        result.textContent = 'Fetching location...';
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(function(position) {
+                userLocation = position.coords;
+                result.textContent = `Latitude: ${position.coords.latitude}, Longitude: ${position.coords.longitude}`;
+            }, function(error) {
+                result.textContent = 'Unable to retrieve your location.';
+            });
+        } else {
+            result.textContent = 'Geolocation is not supported by your browser.';
+        }
+    }
+
+    function showRecommendations(type) {
+        const recDiv = document.getElementById('recommendations');
+        if (!userLocation) {
+            recDiv.innerHTML = '<span style="color:red;">Please get your location first!</span>';
+            return;
+        }
+        let kinds = '';
+        let title = '';
+        let radius = 4000; // Increase radius to 4km
+        if (type === 'restaurants') {
+            // Include more food-related types for better results
+            kinds = 'restaurants,foods,cafes,bars,fast_food';
+            title = 'Nearby Food & Restaurants';
+        } else {
+            kinds = 'parks,tourist_attractions';
+            title = 'Nearby Weekend Spots';
+        }
+        recDiv.innerHTML = 'Loading ' + title.toLowerCase() + '...';
+        // OpenTripMap API (free tier, demo key)
+        const apiKey = '5ae2e3f221c38a28845f05b611a0d3d6';
+        const url = `https://api.opentripmap.com/0.1/en/places/radius?radius=${radius}&lon=${userLocation.longitude}&lat=${userLocation.latitude}&kinds=${kinds}&format=json&apikey=${apiKey}`;
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                if (data.length === 0) {
+                    recDiv.innerHTML = 'No ' + title.toLowerCase() + ' found nearby.';
+                    return;
+                }
+                let html = `<h3>${title}:</h3><ul style='list-style:none;padding:0;'>`;
+                data.slice(0, 10).forEach(place => {
+                    const mapsUrl = `https://www.openstreetmap.org/?mlat=${place.point.lat}&mlon=${place.point.lon}#map=18/${place.point.lat}/${place.point.lon}`;
+                    html += `<li style='margin-bottom:10px;padding:10px;background:#e0f7f7;border-radius:10px;cursor:pointer;' onclick=\"window.open('${mapsUrl}','_blank')\">
+                        <strong>${place.name || 'Unnamed'}</strong><br>
+                        Distance: ${(place.dist/1000).toFixed(2)} km<br>
+                        <span style='color:teal;'>Click for map</span>
+                    </li>`;
+                });
+                html += '</ul>';
+                recDiv.innerHTML = html;
+            })
+            .catch(() => {
+                recDiv.innerHTML = 'Error loading data.';
+            });
+    }
+    </script>
+</body>
+</html>
